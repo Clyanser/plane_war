@@ -2,62 +2,129 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>飞机大战 - 阶段一测试</title>
+    <title>Plane War</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
-        h2 { color: #333; }
-        #log { border: 1px solid #ccc; height: 300px; overflow-y: auto;
-            padding: 5px; margin-top: 10px; background: #fff; }
-        .msg-send { color: blue; }
-        .msg-recv { color: green; }
-        .msg-sys { color: gray; font-style: italic; }
-        input { padding: 5px; width: 250px; }
-        button { padding: 6px 12px; margin-left: 5px; }
+        body { text-align: center; font-family: sans-serif; }
+        canvas { background: #000; display: block; margin: 0 auto; }
+        #matchBtn { margin: 10px; padding: 10px 20px; font-size: 16px; }
     </style>
 </head>
 <body>
-<h2>🚀 阶段一 WebSocket 测试</h2>
-<p>用于验证服务端 `/ws` 是否正常工作</p>
+<h1>Plane War</h1>
+<button id="matchBtn">开始匹配</button>
 
-<div>
-    <input id="msgInput" type="text" placeholder="输入要发送的消息..." />
-    <button onclick="sendMsg()">发送</button>
-</div>
-
-<div id="log"></div>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
 
 <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const matchBtn = document.getElementById('matchBtn');
+
     let ws;
-    let logDiv = document.getElementById("log");
+    let players = [];
+    let bullets = [];
+    let roomID = null;
+    let selfPlayer = null;
+    let gameOver = false;
 
-    function log(message, type="msg-sys") {
-        let p = document.createElement("p");
-        p.className = type;
-        p.textContent = message;
-        logDiv.appendChild(p);
-        logDiv.scrollTop = logDiv.scrollHeight;
+    function connectWS() {
+        ws = new WebSocket(`ws://${location.host}/ws`);
+
+        ws.onopen = () => console.log('WebSocket connected');
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+
+            if (msg.type === 'match_success') {
+                matchBtn.textContent = '匹配成功';
+                matchBtn.disabled = true;
+
+                players = msg.players;
+                roomID = msg.room_id;
+
+                // 使用服务端提供的self_id确保识别自己飞机
+                selfPlayer = players.find(p => p.id === msg.self_id) || players[0];
+
+                render();
+            } else if (msg.type === 'game_state') {
+                players = msg.players;
+                bullets = msg.bullets;
+                render();
+            } else if (msg.type === 'game_over') {
+                gameOver = true;
+                alert(`游戏结束，胜利者: ${msg.winner ? msg.winner.name : '无'}`);
+                matchBtn.textContent = '开始匹配';
+                matchBtn.disabled = false;
+                players = [];
+                bullets = [];
+                render();
+            }
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket closed, retry in 1s');
+            setTimeout(connectWS, 1000);
+        };
     }
 
-    function connect() {
-        ws = new WebSocket("ws://localhost:8080/ws");
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        ws.onopen = () => log("✅ 已连接服务器");
-        ws.onmessage = (evt) => log("📩 收到: " + evt.data, "msg-recv");
-        ws.onclose = () => log("❌ 连接已关闭");
-        ws.onerror = (err) => log("⚠️ 出错: " + err);
+        // 绘制玩家飞机和血条
+        players.forEach(p => {
+            // 飞机
+            ctx.fillStyle = p.position === 'top' ? 'red' : 'blue';
+            ctx.fillRect(p.x, p.y, 50, 50);
+
+            // 血条背景
+            ctx.fillStyle = 'red';
+            ctx.fillRect(p.x, p.y - 10, 50, 5);
+
+            // 血条当前血量
+            ctx.fillStyle = 'lime';
+            ctx.fillRect(p.x, p.y - 10, 50 * (p.hp / 100), 5);
+
+            // 玩家姓名
+            ctx.fillStyle = 'white';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(p.name, p.x + 25, p.y - 15);
+        });
+
+        // 绘制子弹
+        bullets.forEach(b => {
+            ctx.fillStyle = 'yellow';
+            ctx.fillRect(b.x, b.y, 6, 10);
+        });
+
+        if(!gameOver) requestAnimationFrame(render);
     }
 
-    function sendMsg() {
-        let input = document.getElementById("msgInput");
-        let msg = input.value;
-        if (msg && ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(msg);
-            log("📤 发送: " + msg, "msg-send");
-            input.value = "";
+    matchBtn.onclick = () => {
+        if(ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ action: 'match' }));
+            matchBtn.textContent = '匹配中...';
         }
-    }
+    };
 
-    window.onload = connect;
+    document.addEventListener('keydown', (e) => {
+        if(!selfPlayer || gameOver) return;
+
+        switch(e.code){
+            case 'ArrowLeft': selfPlayer.x -= 10; break;
+            case 'ArrowRight': selfPlayer.x += 10; break;
+            case 'ArrowUp': selfPlayer.y -= 10; break;
+            case 'ArrowDown': selfPlayer.y += 10; break;
+            case 'Space':
+                ws.send(JSON.stringify({ action: 'shoot' }));
+                return;
+        }
+
+        ws.send(JSON.stringify({ action: 'move', x: selfPlayer.x, y: selfPlayer.y }));
+    });
+
+    // 初始化 WebSocket
+    connectWS();
 </script>
 </body>
 </html>

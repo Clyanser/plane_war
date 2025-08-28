@@ -102,17 +102,32 @@ func (c *Client) ReadPump() {
 				RoomLock.Lock()
 				RoomMap[room.ID] = room
 				RoomLock.Unlock()
-				
+
+				// 设置玩家位置、血量、上下标识
+				room.Lock.Lock()
+				room.Players[0].X = 100
+				room.Players[0].Y = 50
+				room.Players[0].HP = 100
+				room.Players[0].Position = "top"
+
+				room.Players[1].X = 100
+				room.Players[1].Y = 500
+				room.Players[1].HP = 100
+				room.Players[1].Position = "bottom"
+				room.Lock.Unlock()
+
+				// 发送匹配成功消息给双方
+				state := map[string]interface{}{
+					"type":    "match_success",
+					"room_id": room.ID,
+					"players": room.Players,
+				}
+				data, _ := json.Marshal(state)
 				for _, p := range room.Players {
-					resp := map[string]string{
-						"type":    "match_success",
-						"room_id": room.ID,
-					}
-					data, _ := json.Marshal(resp)
 					p.Conn.WriteMessage(websocket.TextMessage, data)
 				}
-				log.Printf("匹配成功，房间id ：%s ", room.ID)
-				// 启动房间循环
+
+				log.Printf("匹配成功，房间id ：%s", room.ID)
 				game.StartRoomLoop(room)
 			}
 		case "move":
@@ -129,11 +144,16 @@ func (c *Client) ReadPump() {
 			if room != nil {
 				room.Lock.Lock()
 				b := &model.Bullet{
-					ID:    uuid.New().String(),
-					X:     c.Player.X,
-					Y:     c.Player.Y,
-					Owner: c.Player.ID,
-					Speed: 10,
+					ID:     uuid.New().String(),
+					X:      c.Player.X + 22, //子弹从飞机中心射出
+					Y:      c.Player.Y,
+					Owner:  c.Player.ID,
+					Damage: 10,
+				}
+				if c.Player.Position == "top" {
+					b.Speed = -10 //向下
+				} else {
+					b.Speed = 10 //向上
 				}
 				room.Bullets = append(room.Bullets, b)
 				room.Lock.Unlock()
@@ -170,4 +190,21 @@ func findPlayerRoom(playerID string) *model.Room {
 		}
 	}
 	return nil
+}
+
+// 发送完整房间状态
+func sendRoomState(room *model.Room) {
+	room.Lock.Lock()
+	defer room.Lock.Unlock()
+
+	state := map[string]interface{}{
+		"type":    "game_state",
+		"players": room.Players,
+		"bullets": room.Bullets,
+	}
+
+	data, _ := json.Marshal(state)
+	for _, p := range room.Players {
+		p.Conn.WriteMessage(websocket.TextMessage, data)
+	}
 }

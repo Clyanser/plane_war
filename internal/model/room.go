@@ -17,9 +17,10 @@ type Room struct {
 
 // Bullet 子弹信息
 type Bullet struct {
-	ID    string `json:"id"`
-	X     int    `json:"x"`
-	Y     int    `json:"y"`
-	Owner string `json:"owner"` //玩家ID
-	Speed int    `json:"speed"`
+	ID     string `json:"id"`
+	X      int    `json:"x"`
+	Y      int    `json:"y"`
+	Owner  string `json:"owner"` //玩家ID
+	Speed  int    `json:"speed"`
+	Damage int    `json:"damage"`
 }

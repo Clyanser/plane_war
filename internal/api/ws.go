@@ -29,6 +29,7 @@ func WsHandler(c *gin.Context) {
 		ID:   playerID,
 		Name: "玩家—" + playerID[:4],
 		Conn: conn,
+		HP:   100,
 	}
 	//创建client 并注册到hub
 	client := ws.NewClientWithPlayer(&player)
