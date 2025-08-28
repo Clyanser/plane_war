@@ -2,10 +2,13 @@ package ws
 
 import (
 	"encoding/json"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"log"
 	"plane_war/internal/model"
+	"plane_war/internal/service/game"
 	"plane_war/internal/service/match"
+	"sync"
 )
 
 type Client struct {
@@ -66,9 +69,15 @@ func (h *Hub) Run() {
 	}
 }
 
+// --------消息处理--------
 type Message struct {
 	Action string `json:"action"`
+	X      int    `json:"x,omitempty"`
+	Y      int    `json:"y,omitempty"`
 }
+
+var RoomMap = make(map[string]*model.Room)
+var RoomLock sync.Mutex
 
 func (c *Client) ReadPump() {
 	defer func() {
@@ -90,6 +99,10 @@ func (c *Client) ReadPump() {
 		case "match":
 			room := match.MatchQueueInstance.AddPlayer(c.Player)
 			if room != nil {
+				RoomLock.Lock()
+				RoomMap[room.ID] = room
+				RoomLock.Unlock()
+				
 				for _, p := range room.Players {
 					resp := map[string]string{
 						"type":    "match_success",
@@ -99,7 +112,33 @@ func (c *Client) ReadPump() {
 					p.Conn.WriteMessage(websocket.TextMessage, data)
 				}
 				log.Printf("匹配成功，房间id ：%s ", room.ID)
+				// 启动房间循环
+				game.StartRoomLoop(room)
 			}
+		case "move":
+			room := findPlayerRoom(c.Player.ID)
+			if room != nil {
+				room.Lock.Lock()
+				c.Player.X = m.X
+				c.Player.Y = m.Y
+				room.Lock.Unlock()
+			}
+
+		case "shoot":
+			room := findPlayerRoom(c.Player.ID)
+			if room != nil {
+				room.Lock.Lock()
+				b := &model.Bullet{
+					ID:    uuid.New().String(),
+					X:     c.Player.X,
+					Y:     c.Player.Y,
+					Owner: c.Player.ID,
+					Speed: 10,
+				}
+				room.Bullets = append(room.Bullets, b)
+				room.Lock.Unlock()
+			}
+
 		default:
 			// echo 消息
 			HubInstance.Broadcast <- msg
@@ -117,4 +156,18 @@ func (c *Client) WritePump() {
 		}
 		log.Printf("发给玩家 %s: %s", c.Player.ID, msg)
 	}
+}
+
+// 根据玩家ID找到房间
+func findPlayerRoom(playerID string) *model.Room {
+	RoomLock.Lock()
+	defer RoomLock.Unlock()
+	for _, r := range RoomMap {
+		for _, p := range r.Players {
+			if p.ID == playerID {
+				return r
+			}
+		}
+	}
+	return nil
 }

@@ -2,8 +2,11 @@ package model
 
 import "github.com/gorilla/websocket"
 
+// Player 玩家信息
 type Player struct {
-	ID   string          `json:"id"`   //唯一玩家id
-	Name string          `json:"name"` //玩家昵称
-	Conn *websocket.Conn `json:"-"`    //websocket 连接（也可以只存client）
+	ID   string          `json:"id"`
+	Name string          `json:"name"`
+	X    int             `json:"x"` // 玩家位置 X
+	Y    int             `json:"y"` // 玩家位置 Y
+	Conn *websocket.Conn `json:"-"`
 }
