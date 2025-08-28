@@ -7,7 +7,12 @@ import (
 )
 
 func main() {
+	
 	r := gin.Default()
+	// 静态资源
+	r.Static("/static", "./static")
+	// 默认页面
+	r.StaticFile("/", "./static/html/test.html")
 
 	//websocket 路由
 	r.GET("/ws", api.WsHandler)

@@ -2,9 +2,11 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"plane_war/internal/model"
 	"plane_war/internal/ws"
 )
 
@@ -21,7 +23,15 @@ func WsHandler(c *gin.Context) {
 		log.Println("upgrader error:", err)
 		return
 	}
-	client := ws.NewClient(conn)
+	//创建player
+	playerID := uuid.New().String()
+	player := model.Player{
+		ID:   playerID,
+		Name: "玩家—" + playerID[:4],
+		Conn: conn,
+	}
+	//创建client 并注册到hub
+	client := ws.NewClientWithPlayer(&player)
 	go client.ReadPump()
 	go client.WritePump()
 

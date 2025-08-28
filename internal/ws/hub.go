@@ -3,17 +3,18 @@ package ws
 import (
 	"github.com/gorilla/websocket"
 	"log"
+	"plane_war/internal/model"
 )
 
 type Client struct {
-	Conn *websocket.Conn
-	Send chan []byte
+	Player *model.Player //关联玩家信息
+	Send   chan []byte   //消息通道
 }
 
-func NewClient(conn *websocket.Conn) *Client {
+func NewClientWithPlayer(p *model.Player) *Client {
 	return &Client{
-		Conn: conn,
-		Send: make(chan []byte, 256),
+		Player: p,
+		Send:   make(chan []byte, 256),
 	}
 }
 
@@ -42,12 +43,12 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.Register:
 			h.Clients[client] = true
-			log.Println("new client connected")
+			log.Printf("new player connected :%s", client.Player.Name)
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
 				delete(h.Clients, client)
 				close(client.Send)
-				log.Println("client disconnected")
+				log.Printf("player disconnected : %s", client.Player.Name)
 			}
 		case message := <-h.Broadcast:
 			for client := range h.Clients {
@@ -65,27 +66,27 @@ func (h *Hub) Run() {
 func (c *Client) ReadPump() {
 	defer func() {
 		HubInstance.Unregister <- c
-		c.Conn.Close()
+		c.Player.Conn.Close()
 	}()
 	for {
-		_, msg, err := c.Conn.ReadMessage()
+		_, msg, err := c.Player.Conn.ReadMessage()
 		if err != nil {
 			log.Println("read error:", err)
 			break
 		}
-		log.Printf("recv: %s", msg)
+		log.Printf("玩家 %s 发送: %s", c.Player.ID, msg)
 		HubInstance.Broadcast <- msg // echo 回去
 	}
 }
 
 func (c *Client) WritePump() {
-	defer c.Conn.Close()
+	defer c.Player.Conn.Close()
 	for msg := range c.Send {
-		err := c.Conn.WriteMessage(websocket.TextMessage, msg)
+		err := c.Player.Conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
 			log.Println("write error:", err)
 			break
 		}
-		log.Printf("send: %s", msg)
+		log.Printf("发给玩家 %s: %s", c.Player.ID, msg)
 	}
 }
