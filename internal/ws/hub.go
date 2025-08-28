@@ -1,9 +1,11 @@
 package ws
 
 import (
+	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
 	"plane_war/internal/model"
+	"plane_war/internal/service/match"
 )
 
 type Client struct {
@@ -18,6 +20,7 @@ func NewClientWithPlayer(p *model.Player) *Client {
 	}
 }
 
+// Hub 管理客户端
 type Hub struct {
 	Clients    map[*Client]bool
 	Broadcast  chan []byte
@@ -63,6 +66,10 @@ func (h *Hub) Run() {
 	}
 }
 
+type Message struct {
+	Action string `json:"action"`
+}
+
 func (c *Client) ReadPump() {
 	defer func() {
 		HubInstance.Unregister <- c
@@ -74,8 +81,29 @@ func (c *Client) ReadPump() {
 			log.Println("read error:", err)
 			break
 		}
-		log.Printf("玩家 %s 发送: %s", c.Player.ID, msg)
-		HubInstance.Broadcast <- msg // echo 回去
+		var m Message
+		if err := json.Unmarshal(msg, &m); err != nil {
+			log.Println("json prase error:", err)
+			continue
+		}
+		switch m.Action {
+		case "match":
+			room := match.MatchQueueInstance.AddPlayer(c.Player)
+			if room != nil {
+				for _, p := range room.Players {
+					resp := map[string]string{
+						"type":    "match_success",
+						"room_id": room.ID,
+					}
+					data, _ := json.Marshal(resp)
+					p.Conn.WriteMessage(websocket.TextMessage, data)
+				}
+				log.Printf("匹配成功，房间id ：%s ", room.ID)
+			}
+		default:
+			// echo 消息
+			HubInstance.Broadcast <- msg
+		}
 	}
 }
 
