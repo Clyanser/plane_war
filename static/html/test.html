@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>飞机大战 - 阶段一测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
+        h2 { color: #333; }
+        #log { border: 1px solid #ccc; height: 300px; overflow-y: auto;
+            padding: 5px; margin-top: 10px; background: #fff; }
+        .msg-send { color: blue; }
+        .msg-recv { color: green; }
+        .msg-sys { color: gray; font-style: italic; }
+        input { padding: 5px; width: 250px; }
+        button { padding: 6px 12px; margin-left: 5px; }
+    </style>
+</head>
+<body>
+<h2>🚀 阶段一 WebSocket 测试</h2>
+<p>用于验证服务端 `/ws` 是否正常工作</p>
+
+<div>
+    <input id="msgInput" type="text" placeholder="输入要发送的消息..." />
+    <button onclick="sendMsg()">发送</button>
+</div>
+
+<div id="log"></div>
+
+<script>
+    let ws;
+    let logDiv = document.getElementById("log");
+
+    function log(message, type="msg-sys") {
+        let p = document.createElement("p");
+        p.className = type;
+        p.textContent = message;
+        logDiv.appendChild(p);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function connect() {
+        ws = new WebSocket("ws://localhost:8080/ws");
+
+        ws.onopen = () => log("✅ 已连接服务器");
+        ws.onmessage = (evt) => log("📩 收到: " + evt.data, "msg-recv");
+        ws.onclose = () => log("❌ 连接已关闭");
+        ws.onerror = (err) => log("⚠️ 出错: " + err);
+    }
+
+    function sendMsg() {
+        let input = document.getElementById("msgInput");
+        let msg = input.value;
+        if (msg && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(msg);
+            log("📤 发送: " + msg, "msg-send");
+            input.value = "";
+        }
+    }
+
+    window.onload = connect;
+</script>
+</body>
+</html>
