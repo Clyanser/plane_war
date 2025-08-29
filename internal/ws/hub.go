@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"log"
+	"plane_war/global"
 	"plane_war/internal/model"
 	"plane_war/internal/service/game"
 	"plane_war/internal/service/match"
@@ -49,12 +49,12 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.Register:
 			h.Clients[client] = true
-			log.Printf("new player connected :%s", client.Player.Name)
+			global.Log.Printf("new player connected :%s", client.Player.Name)
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
 				delete(h.Clients, client)
 				close(client.Send)
-				log.Printf("player disconnected : %s", client.Player.Name)
+				global.Log.Printf("player disconnected : %s", client.Player.Name)
 			}
 		case message := <-h.Broadcast:
 			for client := range h.Clients {
@@ -87,12 +87,12 @@ func (c *Client) ReadPump() {
 	for {
 		_, msg, err := c.Player.Conn.ReadMessage()
 		if err != nil {
-			log.Println("read error:", err)
+			global.Log.Println("read error:", err)
 			break
 		}
 		var m Message
 		if err := json.Unmarshal(msg, &m); err != nil {
-			log.Println("json prase error:", err)
+			global.Log.Println("json prase error:", err)
 			continue
 		}
 		switch m.Action {
@@ -127,7 +127,7 @@ func (c *Client) ReadPump() {
 					p.Conn.WriteMessage(websocket.TextMessage, data)
 				}
 
-				log.Printf("匹配成功，房间id ：%s", room.ID)
+				global.Log.Printf("匹配成功，房间id ：%s", room.ID)
 				game.StartRoomLoop(room)
 			}
 		case "move":
@@ -171,10 +171,10 @@ func (c *Client) WritePump() {
 	for msg := range c.Send {
 		err := c.Player.Conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
-			log.Println("write error:", err)
+			global.Log.Println("write error:", err)
 			break
 		}
-		log.Printf("发给玩家 %s: %s", c.Player.ID, msg)
+		global.Log.Printf("发给玩家 %s: %s", c.Player.ID, msg)
 	}
 }
 

@@ -1,0 +1,17 @@
+server:
+  port: 8080
+Mysql:
+  Dsn: root:123123@tcp(127.0.0.1:3306)/tudo_im?charset=utf8mb4&parseTime=True&loc=Local
+Redis:
+  Addr: 127.0.0.1:6379
+  Pwd:
+  DB: 0
+Auth:
+  AccessSecret : 5200731
+  AccessExpire : 3600
+logger:
+  level: info
+  prefix: '[plane_war]'
+  director: log
+  show_line: true
+  log_in_console: true

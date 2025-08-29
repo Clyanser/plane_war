@@ -1,6 +1,7 @@
 package model
 
 import (
+	"gorm.io/gorm"
 	"sync"
 	"time"
 )
@@ -17,6 +18,7 @@ type Room struct {
 
 // Bullet 子弹信息
 type Bullet struct {
+	gorm.Model
 	ID     string `json:"id"`
 	X      int    `json:"x"`
 	Y      int    `json:"y"`
