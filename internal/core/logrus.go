@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"os"
 	"path"
-	"plane_war/global"
+	"plane_war/internal/global"
 )
 
 const (

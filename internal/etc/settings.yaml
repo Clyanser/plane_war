@@ -1,7 +1,9 @@
 server:
-  port: 8080
+  Host: 127.0.0.1
+  Port: :8080
+  Env: release
 Mysql:
-  Dsn: root:123123@tcp(127.0.0.1:3306)/tudo_im?charset=utf8mb4&parseTime=True&loc=Local
+  Dsn: root:123123@tcp(127.0.0.1:3306)/plane_war?charset=utf8mb4&parseTime=True&loc=Local
 Redis:
   Addr: 127.0.0.1:6379
   Pwd:
@@ -9,6 +11,7 @@ Redis:
 Auth:
   AccessSecret : 5200731
   AccessExpire : 3600
+  RefreshExpire: 604800
 logger:
   level: info
   prefix: '[plane_war]'

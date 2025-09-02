@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"plane_war/global"
+	"plane_war/internal/global"
 	"plane_war/internal/model"
 	"plane_war/internal/service/game"
 	"plane_war/internal/service/match"

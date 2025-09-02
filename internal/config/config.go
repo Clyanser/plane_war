@@ -7,7 +7,9 @@ import (
 
 type Config struct {
 	Server struct {
-		Port int
+		Host string
+		Port string
+		Env  string
 	}
 	Mysql struct {
 		Dsn string
@@ -18,8 +20,9 @@ type Config struct {
 		DB   int
 	}
 	Auth struct {
-		AccessSecret string
-		AccessExpire int
+		AccessSecret  string
+		AccessExpire  int
+		RefreshExpire int
 	}
 	Logger struct {
 		Level        string `yaml:"level"`

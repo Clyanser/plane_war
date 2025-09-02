@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"plane_war/core"
+	"plane_war/internal/core"
 	"plane_war/internal/model"
 )
 
