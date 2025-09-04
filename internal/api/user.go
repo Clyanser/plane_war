@@ -2,13 +2,52 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"plane_war/internal/global"
 	"plane_war/internal/model"
 	"plane_war/internal/model/res"
 	"plane_war/internal/service/redis_service"
 	"plane_war/internal/utils/jwts"
+	"plane_war/internal/utils/pwd"
 )
 
+func Register(c *gin.Context) {
+	var req struct {
+		Username string `json:"username" binding:"required" msg:"请输入用户名"`
+		Password string `json:"password" binding:"required" msg:"请输入密码"`
+		Nickname string `json:"nickname"`
+	}
+	//绑定参数
+	if err := c.ShouldBind(&req); err != nil {
+		global.Log.Error(err.Error())
+		res.FailWithMsg("参数错误", c)
+		return
+	}
+	//检查用户是否已经存在
+	var user model.User
+	err := global.DB.Where("username = ?", req.Username).First(&user).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		res.FailWithMsg("用户已经存在", c)
+	}
+	//加密密码
+	hashPassword, err := pwd.HashPassword(req.Password)
+	if err != nil {
+		global.Log.Error(err.Error())
+		res.FailWithMsg("密码加密失败", c)
+		return
+	}
+	//保存用户到数据库
+	newUser := model.User{
+		Username: req.Username,
+		Password: string(hashPassword),
+		Nickname: req.Nickname,
+	}
+	if err := global.DB.Create(&newUser).Error; err != nil {
+		res.FailWithMsg("用户注册失败", c)
+		return
+	}
+	res.OkWithMsg("注册成功", c)
+}
 func Login(c *gin.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`
@@ -20,9 +59,14 @@ func Login(c *gin.Context) {
 	}
 
 	var user model.User
-	err := global.DB.Take(&user, "username=? and password = ?", req.Username, req.Password).Error
+	err := global.DB.Take(&user, "username=?", req.Username).Error
 	if err != nil {
 		global.Log.Warn("用户名不存在")
+		return
+	}
+	//密码对比
+	if !pwd.ComparePasswords(user.Password, req.Password) {
+		res.FailWithMsg("密码错误", c)
 		return
 	}
 	//生成 ACCESS Token
@@ -59,8 +103,8 @@ func Login(c *gin.Context) {
 		return
 	}
 	authData := map[string]interface{}{
-		"access_token":  "Bearer" + accessToken,
-		"refresh_token": "Bearer" + refreshToken,
+		"access_token":  "Bearer " + accessToken,
+		"refresh_token": "Bearer " + refreshToken,
 	}
 	res.OkWithData(authData, c)
 }

@@ -208,3 +208,13 @@ func sendRoomState(room *model.Room) {
 		p.Conn.WriteMessage(websocket.TextMessage, data)
 	}
 }
+
+// 根据 UserID 查找客户端
+func FindClientByUserID(userID uint) *Client {
+	for client := range HubInstance.Clients {
+		if client.Player.UserID == userID {
+			return client
+		}
+	}
+	return nil
+}

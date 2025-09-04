@@ -22,6 +22,7 @@ func InitRouter() *gin.Engine {
 	//路由分成
 	routerGroupApp := RouterGroup{apiRouterGroup}
 	routerGroupApp.AuthRouter()
+	routerGroupApp.LobbyRouter()
 	// WebSocket 路由
 	r.GET("/ws", api.WsHandler) // WebSocket 路由
 	return r

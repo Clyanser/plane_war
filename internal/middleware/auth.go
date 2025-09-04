@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"plane_war/internal/global"
 	"plane_war/internal/model/res"
 	"plane_war/internal/service/redis_service"
 	"plane_war/internal/utils/jwts"
@@ -15,15 +16,15 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 1. 获取 Authorization Header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			res.FailWithMsg("未携带token", c)
+			res.FailWithMsg("未携带 Authorization header", c)
 			c.Abort()
 			return
 		}
 
-		// 2. 支持 Bearer token
+		// 2. Bearer 格式校验
 		parts := strings.Fields(authHeader)
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			res.FailWithMsg("token 错误", c)
+			res.FailWithMsg("Authorization 格式错误，正确示例: Bearer <token>", c)
 			c.Abort()
 			return
 		}
@@ -32,22 +33,25 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 3. 解析 JWT
 		claims, err := jwts.ParseToken(tokenString)
 		if err != nil {
-			res.FailWithMsg("无效的 Token", c)
+			global.Log.Error(err.Error())
+			res.FailWithMsg("Token 无效或已过期", c)
 			c.Abort()
 			return
 		}
-
 		// 4. 检查 Redis 中 token 是否存在
-		// 判断是否在 Redis 中有效
-		if userID, ok := redis_service.GetUserIDByAccessToken(tokenString); !ok || userID != claims.UserID {
-			res.FailWithMsg("Token 已失效", c)
+		userID, ok := redis_service.GetUserIDByAccessToken(tokenString)
+		if !ok {
+			res.FailWithMsg("Token 已失效，请重新登录", c)
 			c.Abort()
 			return
 		}
-
-		// 5. 将用户信息注入 Context
-		c.Set("user_id", claims.UserID)
-		c.Set("nickname", claims.Nickname)
+		if userID != claims.UserID {
+			res.FailWithMsg("Token 与用户信息不匹配", c)
+			c.Abort()
+			return
+		}
+		// 5. 注入用户信息到 Context
+		c.Set("claims", claims)
 
 		c.Next()
 	}
